@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CoreFactory v3 Dashboard</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e2a;
+    --card: #1e2231;
+    --border: #2a2f42;
+    --accent: #00e5ff;
+    --accent2: #7c5cfc;
+    --green: #00e676;
+    --red: #ff5252;
+    --amber: #ffc400;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --radius: 12px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header-title { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; color: var(--accent); }
+  .header-title span { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 5px; transition: background 0.3s; }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.error { background: var(--red); }
+  .last-update { font-size: 11px; color: var(--muted); }
+
+  /* TABS */
+  .tabs { display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 1; min-width: 70px; padding: 11px 8px; text-align: center; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  /* CONTENT */
+  .content { padding: 14px; max-width: 600px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.red { color: var(--red); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(0,230,118,0.15); color: var(--green); }
+  .badge-red { background: rgba(255,82,82,0.15); color: var(--red); }
+  .badge-amber { background: rgba(255,196,0,0.15); color: var(--amber); }
+  .badge-blue { background: rgba(0,229,255,0.15); color: var(--accent); }
+
+  /* MACHINE ROWS */
+  .machine-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .machine-row:last-child { border-bottom: none; }
+  .machine-name { flex: 1; font-weight: 500; font-size: 13px; }
+  .machine-level { font-size: 12px; color: var(--muted); margin-right: 10px; }
+  .progress-wrap { width: 80px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-right: 10px; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s; }
+  .progress-bar.max { background: var(--green); }
+
+  /* TOGGLE ROW */
+  .toggle-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { flex: 1; font-size: 13px; }
+  .toggle-status { font-size: 12px; }
+
+  /* CHART */
+  .chart-wrap { position: relative; height: 180px; margin-top: 8px; }
+  canvas { width: 100% !important; }
+
+  /* SERVER INFO */
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { color: var(--muted); }
+  .info-val { font-weight: 500; text-align: right; max-width: 180px; word-break: break-all; }
+
+  /* REFRESH BTN */
+  .refresh-btn { background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); color: var(--accent); border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; width: 100%; margin-top: 4px; font-weight: 500; }
+  .refresh-btn:active { opacity: 0.7; }
+
+  /* ERROR BOX */
+  .error-box { background: rgba(255,82,82,0.1); border: 1px solid rgba(255,82,82,0.3); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; font-size: 12px; color: var(--red); line-height: 1.6; }
+  .error-box strong { display: block; margin-bottom: 4px; font-size: 13px; }
+  .fix-box { background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.25); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; font-size: 12px; color: #a0f0c8; line-height: 1.8; }
+  .fix-box strong { display: block; margin-bottom: 4px; font-size: 13px; color: var(--green); }
+
+  /* LOADING */
+  .loading { text-align: center; color: var(--muted); padding: 30px; font-size: 13px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TIMER BAR */
+  .timer-bar { height: 2px; background: var(--border); position: relative; overflow: hidden; }
+  .timer-fill { height: 100%; background: var(--accent); width: 100%; transform-origin: left; animation: countdown 60s linear forwards; }
+  @keyframes countdown { to { width: 0%; } }
+
+  .section-sep { height: 1px; background: var(--border); margin: 12px 0; }
+  .conn-status { display: flex; align-items: center; font-size: 12px; gap: 5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">CoreFactory <span>v3.0</span></div>
+    <div class="conn-status">
+      <span class="status-dot" id="connDot"></span>
+      <span id="connText" style="color:var(--muted)">Đang kết nối...</span>
+    </div>
+  </div>
+  <div class="last-update" id="lastUpdate">--</div>
+</div>
+<div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)"><span class="tab-icon">📊</span>Tổng quan</div>
+  <div class="tab" onclick="switchTab(1)"><span class="tab-icon">⚙️</span>Machines</div>
+  <div class="tab" onclick="switchTab(2)"><span class="tab-icon">📈</span>Biểu đồ</div>
+  <div class="tab" onclick="switchTab(3)"><span class="tab-icon">🖥️</span>Server</div>
+</div>
+
+<!-- TAB 0: TỔNG QUAN -->
+<div class="content">
+<div class="page active" id="page0">
+  <div id="errorArea"></div>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">Tiền hiện tại</div><div class="stat-value accent" id="stat-money">--</div><div class="stat-sub" id="stat-money-sub">--</div></div>
+    <div class="stat-card"><div class="stat-label">Tổng Prestige</div><div class="stat-value amber" id="stat-prestige">--</div><div class="stat-sub">lần đã prestige</div></div>
+    <div class="stat-card"><div class="stat-label">Quặng đã farm</div><div class="stat-value green" id="stat-ore">--</div><div class="stat-sub" id="stat-ore-sub">--</div></div>
+    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value" id="stat-uptime" style="font-size:16px">--</div><div class="stat-sub" id="stat-session">--</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Trạng thái hệ thống</div>
+    <div class="toggle-row">
+      <div class="toggle-label">🌾 Auto Farm Quai</div>
+      <span class="toggle-status" id="sys-farm">--</span>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-label">🔧 Auto Upgrade</div>
+      <span class="toggle-status" id="sys-upgrade">--</span>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-label">📦 Auto Collect</div>
+      <span class="toggle-status" id="sys-collect">--</span>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-label">⏰ Anti-AFK</div>
+      <span class="toggle-status" id="sys-afk">--</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Upgrade hiện tại</div>
+    <div class="info-row"><span class="info-key">Máy đang upgrade</span><span class="info-val" id="cur-machine">--</span></div>
+    <div class="info-row"><span class="info-key">Bước upgrade</span><span class="info-val" id="cur-step">--</span></div>
+    <div class="info-row"><span class="info-key">Máy prestige tiếp</span><span class="info-val" id="cur-prestige-target">--</span></div>
+    <div class="info-row"><span class="info-key">Giá prestige</span><span class="info-val" id="cur-prestige-cost">--</span></div>
+  </div>
+
+  <button class="refresh-btn" onclick="fetchData()">🔄 Làm mới ngay</button>
+</div>
+
+<!-- TAB 1: MACHINES -->
+<div class="page" id="page1">
+  <div class="card">
+    <div class="card-title">Machines đang farm</div>
+    <div id="machines-list">
+      <div class="loading"><div class="spinner"></div><div>Đang tải...</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Chi tiết prestige</div>
+    <div id="prestige-list">
+      <div class="loading"><div class="spinner"></div><div>Đang tải...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: BIỂU ĐỒ -->
+<div class="page" id="page2">
+  <div class="card">
+    <div class="card-title">Tiền theo thời gian</div>
+    <div class="chart-wrap"><canvas id="moneyChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Quặng farm theo thời gian</div>
+    <div class="chart-wrap"><canvas id="oreChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Prestige theo thời gian</div>
+    <div class="chart-wrap"><canvas id="prestigeChart"></canvas></div>
+  </div>
+  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:8px">Lịch sử lưu tối đa 60 điểm (mỗi điểm = 1 lần refresh)</div>
+</div>
+
+<!-- TAB 3: SERVER -->
+<div class="page" id="page3">
+  <div class="card">
+    <div class="card-title">Thông tin Firebase</div>
+    <div class="info-row"><span class="info-key">Database URL</span><span class="info-val" style="font-size:11px; color:var(--accent)">dyccc-b99cb-default-rtdb<br>.asia-southeast1</span></div>
+    <div class="info-row"><span class="info-key">Script version</span><span class="info-val">CoreFactory v3.0</span></div>
+    <div class="info-row"><span class="info-key">Dashboard</span><span class="info-val">v3.0</span></div>
+    <div class="info-row"><span class="info-key">Auto refresh</span><span class="info-val">60 giây</span></div>
+    <div class="info-row"><span class="info-key">Kết nối lần cuối</span><span class="info-val" id="srv-lastconn">--</span></div>
+    <div class="info-row"><span class="info-key">Tổng lần fetch</span><span class="info-val" id="srv-fetchcount">0</span></div>
+    <div class="info-row"><span class="info-key">Lỗi liên tiếp</span><span class="info-val" id="srv-errcount">0</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Raw Data (debug)</div>
+    <div id="raw-data" style="font-size:11px; color:var(--muted); font-family:monospace; line-height:1.7; max-height:200px; overflow-y:auto; white-space:pre-wrap; word-break:break-all">Chưa có dữ liệu</div>
+  </div>
+
+  <div class="fix-box">
+    <strong>✅ Fix "Failed to fetch"</strong>
+    Nếu mở bằng file:// trên điện thoại → trình duyệt chặn fetch.<br>
+    <strong>Cách fix:</strong><br>
+    1. Dùng <strong>Chrome</strong> trên điện thoại<br>
+    2. Mở URL trực tiếp: <code style="color:var(--accent)">chrome://flags</code> → bật <em>Insecure origins treated as secure</em><br>
+    3. Hoặc upload HTML lên <strong>GitHub Pages</strong> (miễn phí, không cần host)<br>
+    4. Hoặc dùng app <strong>Simple HTTP Server</strong> trên Android
+  </div>
+
+  <button class="refresh-btn" onclick="fetchData()">🔄 Làm mới ngay</button>
+  <button class="refresh-btn" style="margin-top:8px; background:rgba(255,82,82,0.1); border-color:rgba(255,82,82,0.3); color:var(--red);" onclick="clearHistory()">🗑️ Xóa lịch sử biểu đồ</button>
+</div>
+
+</div><!-- end content -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const FIREBASE_URL = "https://dyccc-b99cb-default-rtdb.asia-southeast1.firebasedatabase.app";
+const MACHINES = ["Evaluator","Ranker","Upgrader","Classifier","Molder"];
+const MAX_HISTORY = 60;
+const REFRESH_INTERVAL = 60000;
+
+let fetchCount = 0;
+let errCount = 0;
+let charts = {};
+let history = { money: [], ore: [], prestige: [], labels: [] };
+
+function loadHistory() {
+  try {
+    const h = localStorage.getItem("cf_history_v3");
+    if (h) history = JSON.parse(h);
+  } catch(e) {}
+}
+
+function saveHistory() {
+  try { localStorage.setItem("cf_history_v3", JSON.stringify(history)); } catch(e) {}
+}
+
+function clearHistory() {
+  history = { money: [], ore: [], prestige: [], labels: [] };
+  saveHistory();
+  renderCharts();
+  alert("Đã xóa lịch sử biểu đồ!");
+}
+
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i===idx));
+  if (idx === 2) setTimeout(renderCharts, 100);
+}
+
+function fmt(n) {
+  if (n === undefined || n === null || n === "--") return "--";
+  n = Number(n);
+  if (isNaN(n)) return "--";
+  if (n >= 1e12) return (n/1e12).toFixed(2) + "T";
+  if (n >= 1e9) return (n/1e9).toFixed(2) + "B";
+  if (n >= 1e6) return (n/1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n/1e3).toFixed(1) + "K";
+  return n.toLocaleString();
+}
+
+function badgeOnOff(val) {
+  const on = val === true || val === "true" || val === 1 || val === "on";
+  return on
+    ? '<span class="badge badge-green">✓ ON</span>'
+    : '<span class="badge badge-red">✗ OFF</span>';
+}
+
+function timeAgo(ts) {
+  if (!ts) return "--";
+  const diff = Math.floor((Date.now() - ts*1000) / 1000);
+  if (diff < 60) return diff + "s trước";
+  if (diff < 3600) return Math.floor(diff/60) + "m trước";
+  if (diff < 86400) return Math.floor(diff/3600) + "h trước";
+  return Math.floor(diff/86400) + "d trước";
+}
+
+function fmtUptime(s) {
+  if (!s) return "--";
+  s = Math.floor(s);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sc = s%60;
+  if (h > 0) return h+"h "+m+"m";
+  if (m > 0) return m+"m "+sc+"s";
+  return sc+"s";
+}
+
+function setConnStatus(ok, msg) {
+  const dot = document.getElementById("connDot");
+  const txt = document.getElementById("connText");
+  dot.className = "status-dot " + (ok ? "online" : "error");
+  txt.textContent = msg;
+  txt.style.color = ok ? "var(--green)" : "var(--red)";
+}
+
+function showError(msg) {
+  document.getElementById("errorArea").innerHTML =
+    `<div class="error-box"><strong>⚠️ Lỗi kết nối Firebase</strong>${msg}</div>`;
+}
+
+function clearError() {
+  document.getElementById("errorArea").innerHTML = "";
+}
+
+function updateLastUpdate() {
+  const now = new Date();
+  document.getElementById("lastUpdate").textContent =
+    now.getHours().toString().padStart(2,"0")+":"+
+    now.getMinutes().toString().padStart(2,"0")+":"+
+    now.getSeconds().toString().padStart(2,"0");
+}
+
+function restartTimer() {
+  const fill = document.getElementById("timerFill");
+  fill.style.animation = "none";
+  fill.offsetHeight;
+  fill.style.animation = "countdown 60s linear forwards";
+}
+
+async function fetchData() {
+  setConnStatus(false, "Đang tải...");
+  fetchCount++;
+  document.getElementById("srv-fetchcount").textContent = fetchCount;
+
+  try {
+    const res = await fetch(FIREBASE_URL + "/.json?t=" + Date.now(), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      mode: "cors"
+    });
+
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+
+    if (!data) throw new Error("Database trống hoặc rules chưa publish");
+
+    errCount = 0;
+    document.getElementById("srv-errcount").textContent = "0";
+    setConnStatus(true, "Đã kết nối Firebase");
+    clearError();
+    updateLastUpdate();
+    document.getElementById("srv-lastconn").textContent = new Date().toLocaleTimeString("vi-VN");
+    document.getElementById("raw-data").textContent = JSON.stringify(data, null, 2);
+
+    renderOverview(data);
+    renderMachines(data);
+    pushHistory(data);
+    saveHistory();
+
+  } catch(e) {
+    errCount++;
+    document.getElementById("srv-errcount").textContent = errCount;
+    setConnStatus(false, "Lỗi: " + e.message);
+
+    let hint = e.message;
+    if (e.message.includes("Failed to fetch") || e.message.includes("NetworkError")) {
+      hint = `<b>Failed to fetch</b> — Nguyên nhân thường gặp:<br>
+      1️⃣ Mở file <code>file://</code> → trình duyệt chặn CORS<br>
+      2️⃣ Firebase Rules chưa Publish<br>
+      3️⃣ Mạng điện thoại chặn request<br><br>
+      👉 <b>Fix:</b> Upload HTML lên GitHub Pages hoặc dùng Simple HTTP Server app`;
+    }
+    showError(hint);
+    document.getElementById("raw-data").textContent = "Lỗi: " + e.toString();
+  }
+
+  restartTimer();
+}
+
+function renderOverview(d) {
+  document.getElementById("stat-money").textContent = fmt(d.money || d.coins || d.currency);
+  document.getElementById("stat-money-sub").textContent = "coins";
+  document.getElementById("stat-prestige").textContent = d.prestiges_done ?? d.prestige_count ?? "--";
+  document.getElementById("stat-ore").textContent = fmt(d.ore_collected ?? d.ores ?? d.total_ore);
+  document.getElementById("stat-ore-sub").textContent = "quặng tổng";
+  document.getElementById("stat-uptime").textContent = fmtUptime(d.uptime ?? d.session_time);
+  document.getElementById("stat-session").textContent = d.session ? "session #"+d.session : "";
+
+  document.getElementById("sys-farm").innerHTML = badgeOnOff(d.auto_farm ?? d.farm_enabled);
+  document.getElementById("sys-upgrade").innerHTML = badgeOnOff(d.auto_upgrade);
+  document.getElementById("sys-collect").innerHTML = badgeOnOff(d.auto_collect ?? d.collect_enabled);
+  document.getElementById("sys-afk").innerHTML = badgeOnOff(d.anti_afk);
+
+  const ms = d.machines_status || {};
+  const cur = d.current_upgrade || {};
+  document.getElementById("cur-machine").textContent = cur.machine ?? d.upgrading_machine ?? "--";
+  document.getElementById("cur-step").textContent = cur.step ? "×"+cur.step : (d.upgrade_step ? "×"+d.upgrade_step : "--");
+
+  const pd = d.prestige_data || {};
+  let cheapest = null, cheapPrice = Infinity;
+  MACHINES.forEach(m => {
+    const cost = pd[m]?.cost ?? pd[m+"_prestige_cost"];
+    if (cost && cost < cheapPrice) { cheapPrice = cost; cheapest = m; }
+  });
+  document.getElementById("cur-prestige-target").textContent = cheapest ?? d.prestige_target ?? "--";
+  document.getElementById("cur-prestige-cost").textContent = cheapest ? fmt(cheapPrice) : (d.prestige_cost ? fmt(d.prestige_cost) : "--");
+}
+
+function renderMachines(d) {
+  const ms = d.machines_status || {};
+  const pd = d.prestige_data || {};
+  const maxLevels = { Evaluator:1000, Ranker:1000, Upgrader:1000, Classifier:1000, Molder:1000 };
+
+  let html = "";
+  MACHINES.forEach(m => {
+    const info = ms[m] || ms[m.toLowerCase()] || {};
+    const level = info.level ?? info.lvl ?? "--";
+    const max = maxLevels[m];
+    const pct = (level !== "--" && max) ? Math.min(100, Math.round(level/max*100)) : 0;
+    const isMax = level >= max;
+    const prestigeCount = info.prestige ?? info.prestige_count ?? pd[m]?.count ?? 0;
+
+    html += `<div class="machine-row">
+      <div>
+        <div class="machine-name">${m}</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:2px">Prestige: ${prestigeCount}x</div>
+      </div>
+      <div class="machine-level">Lv ${level}</div>
+      <div class="progress-wrap"><div class="progress-bar ${isMax?'max':''}" style="width:${pct}%"></div></div>
+      ${isMax ? '<span class="badge badge-green">MAX</span>' : '<span class="badge badge-blue">'+pct+'%</span>'}
+    </div>`;
+  });
+
+  document.getElementById("machines-list").innerHTML = html || '<div style="color:var(--muted);font-size:12px;padding:8px">Chưa có dữ liệu máy</div>';
+
+  let phtml = "";
+  MACHINES.forEach(m => {
+    const info = pd[m] || {};
+    const cost = info.cost ?? info.prestige_cost;
+    const done = info.count ?? info.done ?? 0;
+    const money = Number(d.money || d.coins || 0);
+    const ratio = cost ? (money / cost) : 0;
+    const canPrestige = ratio >= 5;
+
+    phtml += `<div class="machine-row">
+      <div class="machine-name">${m}</div>
+      <div style="text-align:right">
+        <div style="font-size:12px; color:var(--muted)">${cost ? fmt(cost) : "--"} coins</div>
+        ${canPrestige ? '<span class="badge badge-green" style="font-size:10px">✓ Đủ tiền</span>' : (cost ? '<span class="badge badge-amber" style="font-size:10px">'+Math.round(ratio*100)/100+'× / 5×</span>' : '')}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("prestige-list").innerHTML = phtml || '<div style="color:var(--muted);font-size:12px;padding:8px">Chưa có dữ liệu prestige</div>';
+}
+
+function pushHistory(d) {
+  const t = new Date().toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"});
+  history.labels.push(t);
+  history.money.push(Number(d.money || d.coins || 0));
+  history.ore.push(Number(d.ore_collected ?? d.ores ?? 0));
+  history.prestige.push(Number(d.prestiges_done ?? d.prestige_count ?? 0));
+
+  if (history.labels.length > MAX_HISTORY) {
+    history.labels = history.labels.slice(-MAX_HISTORY);
+    history.money = history.money.slice(-MAX_HISTORY);
+    history.ore = history.ore.slice(-MAX_HISTORY);
+    history.prestige = history.prestige.slice(-MAX_HISTORY);
+  }
+}
+
+const chartCfg = (label, color, data, labels) => ({
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label,
+      data,
+      borderColor: color,
+      backgroundColor: color + "18",
+      borderWidth: 1.5,
+      pointRadius: data.length > 20 ? 0 : 2,
+      tension: 0.4,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: "#6b7280", font: {size:10}, maxTicksLimit: 6 }, grid: { color: "#2a2f42" } },
+      y: { ticks: { color: "#6b7280", font: {size:10}, maxTicksLimit: 5, callback: v => fmt(v) }, grid: { color: "#2a2f42" } }
+    }
+  }
+});
+
+function renderCharts() {
+  const defs = [
+    { id: "moneyChart", key: "money", label: "Tiền", color: "#00e5ff" },
+    { id: "oreChart", key: "ore", label: "Quặng", color: "#00e676" },
+    { id: "prestigeChart", key: "prestige", label: "Prestige", color: "#ffc400" }
+  ];
+
+  defs.forEach(({ id, key, label, color }) => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (charts[id]) { charts[id].destroy(); }
+    charts[id] = new Chart(ctx, chartCfg(label, color, history[key], history.labels));
+  });
+}
+
+loadHistory();
+fetchData();
+setInterval(fetchData, REFRESH_INTERVAL);
+</script>
+</body>
+</html>
